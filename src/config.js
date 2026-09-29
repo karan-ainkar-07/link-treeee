@@ -24,6 +24,8 @@ export const SITE = {
 
 // stopAt = second in the video where that event's visual is on screen.
 // description = the sample text shown in the bottom panel for that event.
+// image = shown full-screen instead of the video if the video fails to load,
+//         and reused as this event's icon in the treasure-chest reveal at the end.
 export const EVENTS = [
   {
     id: "chess",
@@ -33,6 +35,7 @@ export const EVENTS = [
     description:
       "A knockout chess tournament for anyone who thinks three moves ahead. Sacrifice a pawn, spring a trap, and claim the crown — 12 Oct, 10:00 AM, solo entry, ₹50.",
     registerUrl: "https://forms.gle/your-chess-form",
+    image: "/sample.png",
     stopAt: 2.3,
   },
   {
@@ -43,6 +46,7 @@ export const EVENTS = [
     description:
       "6-a-side box cricket with tight boundaries and no mercy. Every ball counts — 12 Oct, 2:00 PM, teams of 6, ₹300 per team.",
     registerUrl: "https://forms.gle/your-cricket-form",
+    image: "/sample.png",
     stopAt: 3.4,
   },
   {
@@ -53,6 +57,7 @@ export const EVENTS = [
     description:
       "1v1 FIFA on PS5 in a straight knockout bracket. Bring your best squad and your best trash talk — 13 Oct, 11:00 AM, solo entry, ₹100.",
     registerUrl: "https://forms.gle/your-fifa-form",
+    image: "/sample.png",
     stopAt: 4.4,
   },
   {
@@ -63,6 +68,7 @@ export const EVENTS = [
     description:
       "A team strategy battle where your fleet takes on rival crews. Plan your attack, hold your line, sink the enemy — 13 Oct, 1:00 PM, teams of 3–4, ₹200 per team.",
     registerUrl: "https://forms.gle/your-ship-form",
+    image: "/sample.png",
     stopAt: 6.3,
   },
   {
@@ -73,9 +79,30 @@ export const EVENTS = [
     description:
       "Follow the clues across campus and be the first crew to unearth the chest. Sharp eyes and faster feet win the day — 13 Oct, 4:00 PM, teams of 3–5, ₹150 per team.",
     registerUrl: "https://forms.gle/your-treasure-form",
+    image: "/sample.png",
     stopAt: 9.3,
   },
 ];
+
+// Shown alongside the event icons in the treasure-chest reveal at the very end.
+export const SOCIALS = [
+  { id: "instagram", image: "/sample.png", link: "https://instagram.com/yourhandle" },
+  { id: "linkedin", image: "/sample.png", link: "https://linkedin.com/company/yourpage" },
+  { id: "discord", image: "/sample.png", link: "https://discord.gg/yourinvite" },
+];
+
+// The moment after the video ends: the chest "spills" these out (one per
+// event, then the socials) and they settle at the bottom of the screen.
+// Built automatically from EVENTS + SOCIALS — edit those two above instead.
+export const CHEST_ITEMS = [
+  ...EVENTS.map((e) => ({ id: e.id, image: e.image, link: e.registerUrl })),
+  ...SOCIALS,
+];
+
+export const CHEST = {
+  heading: "The treasure is yours.",
+  sub: "Tap a piece to register, or find us online.",
+};
 
 export const FOOTER = {
   heading: "Fair winds, sailor.",

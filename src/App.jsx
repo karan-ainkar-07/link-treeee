@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { VIDEO, SITE, EVENTS, FOOTER } from "./config";
+import { VIDEO, SITE, EVENTS, CHEST_ITEMS, CHEST, FOOTER } from "./config";
 
 const N = EVENTS.length;
-const HERO = -1;   // step -1 = hero, 0..N-1 = event panels, N = footer
+const HERO = -1;          // step -1  = hero
+const REVEAL = N;         // step N   = treasure-chest reveal (images)
+const FOOTER_STEP = N + 1; // step N+1 = big footer
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 export default function App() {
@@ -10,28 +12,51 @@ export default function App() {
   const [mode, setMode] = useState("full");       // "full" | "framed"
   const [videoOn, setVideoOn] = useState(false);
   const [panelsIn, setPanelsIn] = useState(false);
+  const [chestIn, setChestIn] = useState(false);
+  const [videoFailed, setVideoFailed] = useState(false);
   const [debugTime, setDebugTime] = useState(0);
 
   const videoRef = useRef(null);
   const footerRef = useRef(null);
-  const s = useRef({ step: HERO, busy: false, cooldown: 0 });
+  const s = useRef({ step: HERO, busy: false, cooldown: 0, failed: false });
   const debug = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("debug");
 
   const setStepBoth = (v) => { s.current.step = v; setStep(v); };
   const unlock = () => { s.current.busy = false; s.current.cooldown = Date.now() + 500; };
+  const markFailed = () => { if (s.current.failed) return; s.current.failed = true; setVideoFailed(true); };
 
-  // play video forward from its current time until `target`, then pause exactly there
+  // Play the video forward to `target`. If the video has failed to load (poor
+  // network / poor device), this just waits the same amount of time instead,
+  // so the rest of the scroll choreography stays identical either way.
   const playTo = (target) =>
     new Promise((resolve) => {
       const v = videoRef.current;
-      if (!v) return resolve();
+      if (s.current.failed || !v) { sleep(900).then(resolve); return; }
       v.playbackRate = VIDEO.playbackRate;
       const tick = () => {
+        if (s.current.failed) { resolve(); return; }
         if (v.currentTime >= target - 0.03 || v.ended) { v.pause(); resolve(); return; }
         requestAnimationFrame(tick);
       };
-      v.play().then(() => requestAnimationFrame(tick)).catch(() => { v.currentTime = target; resolve(); });
+      v.play().then(() => requestAnimationFrame(tick)).catch(() => { markFailed(); resolve(); });
     });
+
+  // Detect a video that never loads: an explicit error, or simply taking too
+  // long (slow network / weak device) — either way we fall back to images.
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    const timer = setTimeout(markFailed, 6000);
+    const onReady = () => clearTimeout(timer);
+    const onErr = () => markFailed();
+    v.addEventListener("canplaythrough", onReady);
+    v.addEventListener("error", onErr);
+    return () => {
+      clearTimeout(timer);
+      v.removeEventListener("canplaythrough", onReady);
+      v.removeEventListener("error", onErr);
+    };
+  }, []);
 
   const enterPanel = async (i) => {
     setStepBoth(i);
@@ -50,7 +75,7 @@ export default function App() {
       await sleep(900);
       await playTo(EVENTS[0].stopAt);
       await enterPanel(0);
-    } else if (cur < N - 1) {
+    } else if (cur >= 0 && cur < N - 1) {
       setPanelsIn(false);
       setMode("full");
       await sleep(900);
@@ -60,8 +85,17 @@ export default function App() {
       setPanelsIn(false);
       setMode("full");
       await sleep(900);
-      await playTo(videoRef.current?.duration ?? 999);
-      setStepBoth(N);             // big footer covers everything
+      await playTo(videoRef.current?.duration ?? 999); // chest opens on the last frame
+      setVideoOn(false);
+      setStepBoth(REVEAL);
+      await sleep(900);
+      setChestIn(true);           // images spill out and settle at the bottom
+      await sleep(800);
+      unlock();
+    } else if (cur === REVEAL) {
+      setChestIn(false);
+      await sleep(700);
+      setStepBoth(FOOTER_STEP);
       await sleep(900);
       unlock();
     } else unlock();
@@ -71,9 +105,18 @@ export default function App() {
     const cur = s.current.step;
     s.current.busy = true;
     const v = videoRef.current;
-    if (cur === N) {
+    if (cur === FOOTER_STEP) {
       if (footerRef.current) footerRef.current.scrollTop = 0;
+      setStepBoth(REVEAL);
+      await sleep(300);
+      setChestIn(true);
+      await sleep(800);
+      unlock();
+    } else if (cur === REVEAL) {
+      setChestIn(false);
+      await sleep(700);
       setMode("framed");
+      setVideoOn(true);
       if (v) v.currentTime = EVENTS[N - 1].stopAt;
       setStepBoth(N - 1);
       await sleep(900);
@@ -107,30 +150,30 @@ export default function App() {
     const intent = (dir) => {
       if (!ready()) return;
       const cur = s.current.step;
-      if (dir > 0 && cur < N) goNext();
+      if (dir > 0 && cur < FOOTER_STEP) goNext();
       if (dir < 0 && cur > HERO) goPrev();
     };
     const footerAtTop = () => (footerRef.current?.scrollTop ?? 0) <= 0;
 
     let ty = 0, tTop = true;
     const onWheel = (e) => {
-      const inFooter = s.current.step === N;
+      const inFooter = s.current.step === FOOTER_STEP;
       if (inFooter && !(e.deltaY < 0 && footerAtTop())) return; // native scroll in footer
       e.preventDefault();
       if (Math.abs(e.deltaY) < 8) return;
       intent(e.deltaY > 0 ? 1 : -1);
     };
     const onTouchStart = (e) => { ty = e.touches[0].clientY; tTop = footerAtTop(); };
-    const onTouchMove = (e) => { if (s.current.step !== N) e.preventDefault(); };
+    const onTouchMove = (e) => { if (s.current.step !== FOOTER_STEP) e.preventDefault(); };
     const onTouchEnd = (e) => {
       const dy = ty - e.changedTouches[0].clientY;
       if (Math.abs(dy) < 40) return;
-      if (s.current.step === N && !(dy < 0 && tTop)) return;
+      if (s.current.step === FOOTER_STEP && !(dy < 0 && tTop)) return;
       intent(dy > 0 ? 1 : -1);
     };
     const onKey = (e) => {
-      if (["ArrowDown", "PageDown", " "].includes(e.key)) { if (s.current.step !== N) e.preventDefault(); intent(1); }
-      if (["ArrowUp", "PageUp"].includes(e.key)) { if (s.current.step !== N || footerAtTop()) intent(-1); }
+      if (["ArrowDown", "PageDown", " "].includes(e.key)) { if (s.current.step !== FOOTER_STEP) e.preventDefault(); intent(1); }
+      if (["ArrowUp", "PageUp"].includes(e.key)) { if (s.current.step !== FOOTER_STEP || footerAtTop()) intent(-1); }
     };
 
     window.addEventListener("wheel", onWheel, { passive: false });
@@ -160,14 +203,23 @@ export default function App() {
     <div className="stage">
       <style>{css}</style>
 
-      {/* Video layer */}
+      {/* Video layer — falls back to a static image if the video can't load */}
       <div className={`vwrap ${mode} ${videoOn ? "on" : ""}`}>
-        <video ref={videoRef} src={VIDEO.src} muted playsInline preload="auto" />
+        <video
+          ref={videoRef}
+          src={VIDEO.src}
+          muted
+          playsInline
+          preload="auto"
+          onError={markFailed}
+          style={{ opacity: videoFailed ? 0 : 1 }}
+        />
+        <img className="fallback" src={ev.image} alt="" style={{ opacity: videoFailed ? 1 : 0 }} />
         <div className="shade" />
       </div>
 
-      {/* Hero */}
-      <section className={`hero ${step === HERO ? "" : "out"}`}>
+      {/* Hero — fades out the moment the video starts, not once the first event arrives */}
+      <section className={`hero ${videoOn ? "out" : ""}`}>
         <span className="badge">{SITE.badge}</span>
         <h1>{SITE.title}</h1>
         <p className="tag">{SITE.tagline}</p>
@@ -180,9 +232,7 @@ export default function App() {
         <div className="hint">{SITE.scrollHint}<i>↓</i></div>
       </section>
 
-      {/* Event panels: title panel + description/CTA panel.
-          Mobile: title on top, description on bottom.
-          Desktop: title on left, description on right (flanking the video). */}
+      {/* Event panels: title on top/left, description + CTA on bottom/right */}
       <div className={`panel top ${panelsIn ? "in" : ""}`}>
         <span className="count">{String(Math.max(step, 0) + 1).padStart(2, "0")} / {String(N).padStart(2, "0")}</span>
         <h2><span>{ev.emoji}</span> {ev.title}</h2>
@@ -193,28 +243,30 @@ export default function App() {
         <a className="cta" href={ev.registerUrl} target="_blank" rel="noreferrer">{SITE.registerLabel}</a>
       </div>
 
-      {/* Big footer */}
-      <footer ref={footerRef} className={`footer ${step === N ? "in" : ""}`}>
-        <div className="fin">
-          <h2>{FOOTER.heading}</h2>
-          <p>{FOOTER.about}</p>
-          <h3>Contact</h3>
-          {FOOTER.contacts.map((c) => (
-            <div className="row" key={c.label}><span>{c.label}</span><b>{c.value}</b></div>
-          ))}
-          <h3>FAQ</h3>
-          {FOOTER.faqs.map((f) => (
-            <div className="faq" key={f.q}><b>{f.q}</b><p>{f.a}</p></div>
-          ))}
-          <h3>Links</h3>
-          <div className="links">
-            {FOOTER.links.map((l) => <a key={l.label} href={l.url} target="_blank" rel="noreferrer">{l.label}</a>)}
-          </div>
-          <small>{FOOTER.copyright}</small>
+      {/* Treasure-chest reveal: images spill out and settle like items on the ocean floor */}
+      <div className={`chest ${chestIn ? "in" : ""}`}>
+        <div className="chest-copy">
+          <h2>{CHEST.heading}</h2>
+          <p>{CHEST.sub}</p>
         </div>
-      </footer>
+        <div className="chest-row">
+          {CHEST_ITEMS.map((it, i) => (
+            <a
+              key={it.id}
+              className="chest-item"
+              style={{ transitionDelay: `${i * 90}ms` }}
+              href={it.link}
+              target="_blank"
+              rel="noreferrer"
+              aria-label={it.id}
+            >
+              <img src={it.image} alt={it.id} />
+            </a>
+          ))}
+        </div>
+      </div>
 
-      {debug && <div className="debug">t = {debugTime.toFixed(2)}s · step {step}</div>}
+      {debug && <div className="debug">t = {debugTime.toFixed(2)}s · step {step} · {videoFailed ? "fallback images" : "video"}</div>}
     </div>
   );
 }
@@ -242,7 +294,8 @@ h1,h2,h3,.badge{font-family:'Pirata One',Georgia,serif;font-weight:400}
 .vwrap.on{opacity:1;transform:translate(-50%,-50%) scale(1)}
 .vwrap.framed{width:var(--frame-w);height:var(--frame-h);border-radius:14px;border:2px solid var(--gold);
   box-shadow:0 20px 60px #000a}
-.vwrap video{width:100%;height:100%;object-fit:cover;display:block}
+.vwrap video,.vwrap .fallback{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;
+  transition:opacity .4s ease}
 .shade{position:absolute;inset:0;background:linear-gradient(#0006,#0000 30%,#0000 70%,#0006)}
 
 .hero{position:absolute;inset:0;z-index:5;display:flex;flex-direction:column;justify-content:center;align-items:center;
@@ -271,6 +324,22 @@ h1,h2,h3,.badge{font-family:'Pirata One',Georgia,serif;font-weight:400}
 .desc{line-height:1.6;font-size:.95rem;opacity:.85;max-width:46ch}
 .cta{align-self:flex-start;background:var(--gold);color:var(--ink);font-weight:600;text-decoration:none;
   padding:13px 26px;border-radius:12px;white-space:nowrap}
+
+/* ---- Treasure-chest reveal ---- */
+.chest{position:absolute;inset:0;z-index:7;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;
+  gap:18px;padding:24px 16px 8vh;opacity:0;pointer-events:none;transition:opacity .5s ease}
+.chest.in{opacity:1;pointer-events:auto}
+.chest::before{content:"";position:absolute;inset:0;z-index:-1;
+  background:radial-gradient(ellipse at bottom,#0a2f45dd,transparent 65%)}
+.chest-copy{text-align:center;max-width:420px}
+.chest-copy h2{font-size:clamp(1.8rem,7vw,2.6rem);color:var(--gold)}
+.chest-copy p{opacity:.8;font-size:.9rem;margin-top:4px}
+.chest-row{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;max-width:92vw}
+.chest-item{width:60px;height:60px;border-radius:14px;overflow:hidden;border:2px solid var(--gold);
+  background:#04121c;box-shadow:0 10px 24px #000a;opacity:0;transform:translateY(140%);
+  transition:transform .7s cubic-bezier(.22,1,.36,1),opacity .5s}
+.chest.in .chest-item{opacity:1;transform:translateY(0)}
+.chest-item img{width:100%;height:100%;object-fit:cover;display:block}
 
 .footer{position:absolute;inset:0;z-index:10;overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;
   background:linear-gradient(#07141d,#0a2233);transform:translateY(100%);transition:transform .9s cubic-bezier(.22,1,.36,1)}
@@ -303,6 +372,9 @@ h1,h2,h3,.badge{font-family:'Pirata One',Georgia,serif;font-weight:400}
   .panel.in{transform:none}
   .panel h2{font-size:clamp(2.4rem,4vw,3.6rem)}
   .desc{font-size:1.05rem;max-width:34ch}
+
+  .chest-item{width:76px;height:76px}
+  .chest-copy p{font-size:1rem}
 
   .fin{max-width:760px}
 }
