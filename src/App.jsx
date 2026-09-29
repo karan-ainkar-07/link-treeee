@@ -9,6 +9,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 export default function App() {
   const [step, setStep] = useState(HERO);
+  const [displayIndex, setDisplayIndex] = useState(0);
   const [mode, setMode] = useState("full");       // "full" | "framed"
   const [videoOn, setVideoOn] = useState(false);
   const [panelsIn, setPanelsIn] = useState(false);
@@ -20,8 +21,15 @@ export default function App() {
   const footerRef = useRef(null);
   const s = useRef({ step: HERO, busy: false, cooldown: 0, failed: false });
   const debug = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("debug");
+  const forceFallback = typeof window !== "undefined" && (new URLSearchParams(window.location.search).has("fallback") || new URLSearchParams(window.location.search).has("no-video"));
 
-  const setStepBoth = (v) => { s.current.step = v; setStep(v); };
+  const setStepBoth = (v) => {
+    s.current.step = v;
+    setStep(v);
+    if (v >= 0 && v < N) {
+      setDisplayIndex(v);
+    }
+  };
   const unlock = () => { s.current.busy = false; s.current.cooldown = Date.now() + 500; };
   const markFailed = () => { if (s.current.failed) return; s.current.failed = true; setVideoFailed(true); };
 
@@ -33,32 +41,83 @@ export default function App() {
       const v = videoRef.current;
       if (s.current.failed || !v) { sleep(900).then(resolve); return; }
       v.playbackRate = VIDEO.playbackRate;
+
+      let resolved = false;
+      const done = () => {
+        if (!resolved) {
+          resolved = true;
+          resolve();
+        }
+      };
+
+      const safetyTimer = setTimeout(() => {
+        markFailed();
+        done();
+      }, 5000);
+
       const tick = () => {
-        if (s.current.failed) { resolve(); return; }
-        if (v.currentTime >= target - 0.03 || v.ended) { v.pause(); resolve(); return; }
+        if (s.current.failed) {
+          clearTimeout(safetyTimer);
+          done();
+          return;
+        }
+        if (v.currentTime >= target - 0.03 || v.ended) {
+          clearTimeout(safetyTimer);
+          v.pause();
+          done();
+          return;
+        }
         requestAnimationFrame(tick);
       };
-      v.play().then(() => requestAnimationFrame(tick)).catch(() => { markFailed(); resolve(); });
+
+      const playPromise = v.play();
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => requestAnimationFrame(tick))
+          .catch(() => {
+            clearTimeout(safetyTimer);
+            markFailed();
+            done();
+          });
+      } else {
+        requestAnimationFrame(tick);
+      }
     });
 
   // Detect a video that never loads: an explicit error, or simply taking too
-  // long (slow network / weak device) — either way we fall back to images.
+  // long (slow network / weak device / iOS low power mode) — either way we fall back to images.
   useEffect(() => {
+    if (forceFallback) {
+      markFailed();
+      return;
+    }
     const v = videoRef.current;
     if (!v) return;
-    const timer = setTimeout(markFailed, 6000);
+    v.muted = true;
+    v.playsInline = true;
+
+    if (v.readyState >= 3) return;
+
+    const timer = setTimeout(markFailed, 5000);
     const onReady = () => clearTimeout(timer);
     const onErr = () => markFailed();
+
     v.addEventListener("canplaythrough", onReady);
+    v.addEventListener("canplay", onReady);
+    v.addEventListener("loadeddata", onReady);
     v.addEventListener("error", onErr);
+
     return () => {
       clearTimeout(timer);
       v.removeEventListener("canplaythrough", onReady);
+      v.removeEventListener("canplay", onReady);
+      v.removeEventListener("loadeddata", onReady);
       v.removeEventListener("error", onErr);
     };
   }, []);
 
   const enterPanel = async (i) => {
+    setDisplayIndex(i);
     setStepBoth(i);
     setMode("framed");            // zoom out
     await sleep(800);
@@ -70,17 +129,62 @@ export default function App() {
   const goNext = async () => {
     const cur = s.current.step;
     s.current.busy = true;
+
+    // --- PICTURES MODE: image remains static on event until scrolled ---
+    if (s.current.failed) {
+      if (cur === HERO) {
+        setDisplayIndex(0);
+        setStepBoth(0);
+        setMode("framed");
+        setVideoOn(true);
+        await sleep(300);
+        setPanelsIn(true);
+        await sleep(400);
+        unlock();
+      } else if (cur >= 0 && cur < N - 1) {
+        const nextIdx = cur + 1;
+        setPanelsIn(false);
+        await sleep(300);
+        setDisplayIndex(nextIdx);
+        setStepBoth(nextIdx);
+        await sleep(200);
+        setPanelsIn(true);
+        await sleep(400);
+        unlock();
+      } else if (cur === N - 1) {
+        setPanelsIn(false);
+        await sleep(300);
+        setVideoOn(false);
+        setStepBoth(REVEAL);
+        await sleep(300);
+        setChestIn(true);
+        await sleep(500);
+        unlock();
+      } else if (cur === REVEAL) {
+        setChestIn(false);
+        await sleep(400);
+        setStepBoth(FOOTER_STEP);
+        await sleep(600);
+        unlock();
+      } else unlock();
+      return;
+    }
+
+    // --- VIDEO MODE: original full cinematic playback ---
     if (cur === HERO) {
+      setDisplayIndex(0);
       setVideoOn(true);
       await sleep(900);
       await playTo(EVENTS[0].stopAt);
       await enterPanel(0);
     } else if (cur >= 0 && cur < N - 1) {
+      const nextIdx = cur + 1;
       setPanelsIn(false);
       setMode("full");
       await sleep(900);
-      await playTo(EVENTS[cur + 1].stopAt);
-      await enterPanel(cur + 1);
+      setDisplayIndex(nextIdx);
+      await playTo(EVENTS[nextIdx].stopAt);
+      await enterPanel(nextIdx);
     } else if (cur === N - 1) {
       setPanelsIn(false);
       setMode("full");
@@ -105,6 +209,49 @@ export default function App() {
     const cur = s.current.step;
     s.current.busy = true;
     const v = videoRef.current;
+
+    // --- PICTURES MODE ---
+    if (s.current.failed) {
+      if (cur === FOOTER_STEP) {
+        if (footerRef.current) footerRef.current.scrollTop = 0;
+        setStepBoth(REVEAL);
+        await sleep(200);
+        setChestIn(true);
+        await sleep(500);
+        unlock();
+      } else if (cur === REVEAL) {
+        setChestIn(false);
+        await sleep(300);
+        setDisplayIndex(N - 1);
+        setStepBoth(N - 1);
+        setMode("framed");
+        setVideoOn(true);
+        await sleep(200);
+        setPanelsIn(true);
+        await sleep(400);
+        unlock();
+      } else if (cur > 0) {
+        const prevIdx = cur - 1;
+        setPanelsIn(false);
+        await sleep(300);
+        setDisplayIndex(prevIdx);
+        setStepBoth(prevIdx);
+        await sleep(200);
+        setPanelsIn(true);
+        await sleep(400);
+        unlock();
+      } else if (cur === 0) {
+        setPanelsIn(false);
+        await sleep(300);
+        setVideoOn(false);
+        setStepBoth(HERO);
+        await sleep(400);
+        unlock();
+      } else unlock();
+      return;
+    }
+
+    // --- VIDEO MODE ---
     if (cur === FOOTER_STEP) {
       if (footerRef.current) footerRef.current.scrollTop = 0;
       setStepBoth(REVEAL);
@@ -115,6 +262,7 @@ export default function App() {
     } else if (cur === REVEAL) {
       setChestIn(false);
       await sleep(700);
+      setDisplayIndex(N - 1);
       setMode("framed");
       setVideoOn(true);
       if (v) v.currentTime = EVENTS[N - 1].stopAt;
@@ -124,11 +272,16 @@ export default function App() {
       await sleep(800);
       unlock();
     } else if (cur > 0) {
+      const prevIdx = cur - 1;
       setPanelsIn(false);
+      setMode("full");
       await sleep(700);
-      if (v) v.currentTime = EVENTS[cur - 1].stopAt;
-      setStepBoth(cur - 1);
+      setDisplayIndex(prevIdx);
+      if (v) v.currentTime = EVENTS[prevIdx].stopAt;
+      setStepBoth(prevIdx);
       await sleep(300);
+      setMode("framed");
+      await sleep(700);
       setPanelsIn(true);
       await sleep(800);
       unlock();
@@ -197,13 +350,14 @@ export default function App() {
     return () => clearInterval(id);
   }, [debug]);
 
-  const ev = EVENTS[Math.min(Math.max(step, 0), N - 1)];
+  const activeIdx = Math.min(Math.max(step >= 0 ? step : displayIndex, 0), N - 1);
+  const ev = EVENTS[activeIdx];
 
   return (
     <div className="stage">
       <style>{css}</style>
 
-      {/* Video layer — falls back to a static image if the video can't load */}
+      {/* Video & Poster layers — seamlessly cross-fades posters for each respective event */}
       <div className={`vwrap ${mode} ${videoOn ? "on" : ""}`}>
         <video
           ref={videoRef}
@@ -214,7 +368,18 @@ export default function App() {
           onError={markFailed}
           style={{ opacity: videoFailed ? 0 : 1 }}
         />
-        <img className="fallback" src={ev.image} alt="" style={{ opacity: videoFailed ? 1 : 0 }} />
+        {EVENTS.map((item, idx) => (
+          <img
+            key={item.id}
+            className="fallback"
+            src={item.image}
+            alt={item.title}
+            style={{
+              opacity: videoFailed && idx === displayIndex ? 1 : 0,
+              zIndex: idx === displayIndex ? 2 : 1,
+            }}
+          />
+        ))}
         <div className="shade" />
       </div>
 
@@ -263,6 +428,37 @@ export default function App() {
               <img src={it.image} alt={it.id} />
             </a>
           ))}
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className={`footer ${step === FOOTER_STEP ? "in" : ""}`} ref={footerRef}>
+        <div className="fin">
+          <h2>{FOOTER.heading}</h2>
+          <p>{FOOTER.about}</p>
+          <h3>Contacts</h3>
+          {FOOTER.contacts.map((c) => (
+            <div key={c.label} className="row">
+              <span>{c.label}</span>
+              <b>{c.value}</b>
+            </div>
+          ))}
+          <h3>FAQs</h3>
+          {FOOTER.faqs.map((f) => (
+            <div key={f.q} className="faq">
+              <b>{f.q}</b>
+              <p>{f.a}</p>
+            </div>
+          ))}
+          <h3>Links</h3>
+          <div className="links">
+            {FOOTER.links.map((l) => (
+              <a key={l.label} href={l.url} target="_blank" rel="noreferrer">
+                {l.label}
+              </a>
+            ))}
+          </div>
+          <small>{FOOTER.copyright}</small>
         </div>
       </div>
 

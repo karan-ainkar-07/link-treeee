@@ -1,7 +1,7 @@
 // config.js — edit everything here; App.jsx never needs to change for content.
 
 export const VIDEO = {
-  src: "/pirate.mp4",        // put your video in /public and name it pirate.mp4 (or change this)
+  src: "a/pirate.mp4",        // put your video in /public and name it pirate.mp4 (or change this)
   playbackRate: 0.7,         // speed while travelling between events
   // Tip: open the site with ?debug at the end of the URL to see the live video
   // time on screen, then fine-tune each event's `stopAt` below.
@@ -34,8 +34,8 @@ export const EVENTS = [
     tagline: "Outwit the captain.",
     description:
       "A knockout chess tournament for anyone who thinks three moves ahead. Sacrifice a pawn, spring a trap, and claim the crown — 12 Oct, 10:00 AM, solo entry, ₹50.",
-    registerUrl: "https://forms.gle/your-chess-form",
-    image: "/sample.png",
+    registerUrl: "https://forms.gle/JHxCgY4y6ybt5m9s7",
+    image: "/Online Chess.jpeg",
     stopAt: 2.3,
   },
   {
@@ -45,8 +45,8 @@ export const EVENTS = [
     tagline: "Fast overs. Loud crowds.",
     description:
       "6-a-side box cricket with tight boundaries and no mercy. Every ball counts — 12 Oct, 2:00 PM, teams of 6, ₹300 per team.",
-    registerUrl: "https://forms.gle/your-cricket-form",
-    image: "/sample.png",
+    registerUrl: "https://forms.gle/VCYwncC4SJrXtqb96",
+    image: "/Box Cricket.jpeg",
     stopAt: 3.4,
   },
   {
@@ -56,8 +56,8 @@ export const EVENTS = [
     tagline: "Controller in hand, glory in sight.",
     description:
       "1v1 FIFA on PS5 in a straight knockout bracket. Bring your best squad and your best trash talk — 13 Oct, 11:00 AM, solo entry, ₹100.",
-    registerUrl: "https://forms.gle/your-fifa-form",
-    image: "/sample.png",
+    registerUrl: "https://forms.gle/Kf4fd66hNaDNygwF8",
+    image: "/PS5 Fifa.jpeg",
     stopAt: 4.4,
   },
   {
@@ -67,8 +67,8 @@ export const EVENTS = [
     tagline: "Fire the cannons!",
     description:
       "A team strategy battle where your fleet takes on rival crews. Plan your attack, hold your line, sink the enemy — 13 Oct, 1:00 PM, teams of 3–4, ₹200 per team.",
-    registerUrl: "https://forms.gle/your-ship-form",
-    image: "/sample.png",
+    registerUrl: "https://forms.gle/bLbphRA11x6V6oAA9",
+    image: "/Ship Battle.jpeg",
     stopAt: 6.3,
   },
   {
@@ -78,8 +78,8 @@ export const EVENTS = [
     tagline: "X marks the spot.",
     description:
       "Follow the clues across campus and be the first crew to unearth the chest. Sharp eyes and faster feet win the day — 13 Oct, 4:00 PM, teams of 3–5, ₹150 per team.",
-    registerUrl: "https://forms.gle/your-treasure-form",
-    image: "/sample.png",
+    registerUrl: "https://forms.gle/D9P3AyzxS5kigwAe7",
+    image: "/Lost Treasure of Digital Sea.jpeg",
     stopAt: 9.3,
   },
 ];
