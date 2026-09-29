@@ -311,29 +311,26 @@ export default function App() {
       // STOP 0.5 SECONDS BEFORE THE VIDEO ENDS
       // ----------------------------------------------------------
 
-      const v = videoRef.current;
+const v = videoRef.current;
 
-      const finalStop =
-        v &&
-        Number.isFinite(v.duration) &&
-        v.duration > 0
-          ? Math.max(0, v.duration - 0.1)
-          : 999;
+const finalStop =
+  v &&
+  Number.isFinite(v.duration) &&
+  v.duration > 0
+    ? Math.max(0, v.duration - 0.1)
+    : 999;
 
-      await playTo(finalStop);
+// Start the chest animation immediately
+// as the final video section begins
+setChestIn(true);
 
-      // IMPORTANT:
-      // Keep the video visible behind the treasure reveal.
-      // Do NOT turn videoOn off here.
-      setStepBoth(REVEAL);
+await playTo(finalStop);
 
-      await sleep(900);
+setStepBoth(REVEAL);
 
-      setChestIn(true);
+await sleep(800);
 
-      await sleep(800);
-
-      unlock();
+unlock();
     }
 
     // TREASURE IS FINAL SCREEN
@@ -770,7 +767,7 @@ export default function App() {
               key={it.id}
               className="chest-item"
               style={{
-                transitionDelay: `${i * 30}ms`,
+                transitionDelay: `${i * 90}ms`,
               }}
               href={it.link}
               target="_blank"
