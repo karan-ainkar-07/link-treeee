@@ -162,7 +162,7 @@ export default function App() {
 
       {/* Video layer */}
       <div className={`vwrap ${mode} ${videoOn ? "on" : ""}`}>
-        <video ref={videoRef} src={VIDEO.src}  playsInline preload="auto" />
+        <video ref={videoRef} src={VIDEO.src} muted playsInline preload="auto" />
         <div className="shade" />
       </div>
 
