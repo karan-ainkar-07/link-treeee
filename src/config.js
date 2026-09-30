@@ -1,7 +1,7 @@
 // config.js — edit everything here; App.jsx never needs to change for content.
 
 export const VIDEO = {
-  src: "bcc/pirate.mp4",        // put your video in /public and name it pirate.mp4 (or change this)
+  src: "pirate.mp4",        // put your video in /public and name it pirate.mp4 (or change this)
   playbackRate: 0.7,         // speed while travelling between events
   // Tip: open the site with ?debug at the end of the URL to see the live video
   // time on screen, then fine-tune each event's `stopAt` below.
