@@ -1,7 +1,7 @@
 // config.js — edit everything here; App.jsx never needs to change for content.
 
 export const VIDEO = {
-  src: "pirate.mp4",        // put your video in /public and name it pirate.mp4 (or change this)
+  src: "bcc/pirate.mp4",        // put your video in /public and name it pirate.mp4 (or change this)
   playbackRate: 0.7,         // speed while travelling between events
   // Tip: open the site with ?debug at the end of the URL to see the live video
   // time on screen, then fine-tune each event's `stopAt` below.
@@ -33,7 +33,7 @@ export const EVENTS = [
     title: "Chess",
     tagline: "Outwit the captain.",
     description:
-      "Very Very Big Event",
+      "Get ready for an exciting Online Chess Tournament hosted on Lichess",
     registerUrl: "https://forms.gle/JHxCgY4y6ybt5m9s7",
     image: "/Online Chess.jpeg",
     stopAt: 2.3,
@@ -74,7 +74,7 @@ export const EVENTS = [
   {
     id: "treasure-hunt",
     emoji: "",
-    title: "Treasure Hunt",
+    title: "The Lost Treasure of Digital Sea",
     tagline: "Clues are everywhere.",
     description:
       "Follow the clues, solve the puzzles, and uncover secrets hidden across the pirate's domain. Only the sharpest crew will find the legendary treasure",
