@@ -33,7 +33,7 @@ export const EVENTS = [
     title: "Chess",
     tagline: "Outwit the captain.",
     description:
-      "Very Very Big Event",
+      "Get ready for an exciting Online Chess Tournament hosted on Lichess",
     registerUrl: "https://forms.gle/JHxCgY4y6ybt5m9s7",
     image: "/Online Chess.jpeg",
     stopAt: 2.3,
@@ -74,7 +74,7 @@ export const EVENTS = [
   {
     id: "treasure-hunt",
     emoji: "",
-    title: "Treasure Hunt",
+    title: "The Lost Treasure of Digital Sea",
     tagline: "Clues are everywhere.",
     description:
       "Follow the clues, solve the puzzles, and uncover secrets hidden across the pirate's domain. Only the sharpest crew will find the legendary treasure",
