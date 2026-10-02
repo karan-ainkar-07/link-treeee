@@ -18,6 +18,10 @@ export default function App() {
   const [videoFailed, setVideoFailed] = useState(false);
   const [debugTime, setDebugTime] = useState(0);
 
+  // QUICK ACCESS: menu open/closed + whether the "click for easy access" prompt was used
+  const [quickOpen, setQuickOpen] = useState(false);
+  const [hintSeen, setHintSeen] = useState(false);
+
   const videoRef = useRef(null);
 
   const s = useRef({
@@ -519,6 +523,52 @@ unlock();
   };
 
   // ------------------------------------------------------------
+  // QUICK ACCESS: JUMP STRAIGHT TO ANY EVENT
+  // ------------------------------------------------------------
+
+  const goTo = async (i) => {
+    if (s.current.busy) return;
+
+    setQuickOpen(false);
+
+    // already on this event, nothing to do
+    if (i === s.current.step) return;
+
+    s.current.busy = true;
+
+    const v = videoRef.current;
+
+    setPanelsIn(false);
+    setChestIn(false);
+
+    setHasStarted(true);
+    setVideoOn(true);
+    setMode("full");
+
+    await sleep(700);
+
+    setDisplayIndex(i);
+
+    if (!s.current.failed && v) {
+      v.currentTime = EVENTS[i].stopAt;
+    }
+
+    setStepBoth(i);
+
+    await sleep(300);
+
+    setMode("framed");
+
+    await sleep(700);
+
+    setPanelsIn(true);
+
+    await sleep(800);
+
+    unlock();
+  };
+
+  // ------------------------------------------------------------
   // INPUT / SCROLL / TOUCH / KEYBOARD
   // ------------------------------------------------------------
 
@@ -619,6 +669,16 @@ unlock();
     return () => clearInterval(id);
   }, [debug]);
 
+    // QUICK ACCESS: hide the "click for easy access" prompt after a few seconds
+  const qaShown = step >= 0;
+
+  useEffect(() => {
+    if (!qaShown || hintSeen) return;
+
+    const id = setTimeout(() => setHintSeen(true), 5000);
+
+    return () => clearTimeout(id);
+  }, [qaShown, hintSeen]);
   // ------------------------------------------------------------
   // ACTIVE EVENT
   // ------------------------------------------------------------
@@ -782,6 +842,65 @@ unlock();
           ))}
         </div>
       </div>
+
+      {/* ========================================================
+          QUICK ACCESS (half circle on the right edge)
+          ======================================================== */}
+
+      {step >= 0 && (
+        <>
+          <div
+            className={`qa-backdrop ${quickOpen ? "open" : ""}`}
+            onClick={() => setQuickOpen(false)}
+          />
+
+          <div className={`qa ${quickOpen ? "open" : ""}`}>
+            <span className={`qa-hint ${quickOpen || hintSeen ? "hide" : ""}`}>
+              Click for easy access
+            </span>
+
+            {EVENTS.map((item, k) => {
+              const mid = (N - 1) / 2;
+              const off = k - mid;
+              const x = -(84 - Math.abs(off) * 14);
+              const y = off * 58;
+
+              return (
+                <button
+                  key={item.id}
+                  className={`qa-item ${step === k ? "active" : ""}`}
+                  aria-label={`Go to ${item.title}`}
+                  title={item.title}
+                  onClick={() => goTo(k)}
+                  style={{
+                    transform: quickOpen
+                      ? `translate(${x}px, ${y}px) scale(1)`
+                      : "translate(0, 0) scale(.3)",
+                    opacity: quickOpen ? 1 : 0,
+                    pointerEvents: quickOpen ? "auto" : "none",
+                    transitionDelay: quickOpen
+                      ? `${k * 60}ms`
+                      : `${(N - 1 - k) * 40}ms`,
+                  }}
+                >
+                  {k + 1}
+                </button>
+              );
+            })}
+
+            <button
+              className="qa-toggle"
+              aria-label="Quick access"
+              onClick={() => {
+                setQuickOpen((o) => !o);
+                setHintSeen(true);
+              }}
+            >
+              <i>‹</i>
+            </button>
+          </div>
+        </>
+      )}
 
       {/* ========================================================
           DEBUG
@@ -1263,6 +1382,162 @@ h3,
   object-fit:cover;
 
   display:block;
+}
+
+/* ============================================================
+   QUICK ACCESS
+   ============================================================ */
+
+.qa-backdrop{
+  position:absolute;
+  inset:0;
+  z-index:9;
+  pointer-events:none;
+}
+
+.qa-backdrop.open{
+  pointer-events:auto;
+}
+
+/* 56px box pushed 28px off-screen = exactly half a circle visible */
+.qa{
+  position:absolute;
+  top:50%;
+  right:-28px;
+
+  width:56px;
+  height:56px;
+  margin-top:-28px;
+
+  z-index:10;
+}
+
+.qa-toggle{
+  position:absolute;
+  inset:0;
+
+  width:56px;
+  height:56px;
+
+  border-radius:50%;
+  border:2px solid var(--gold);
+
+  background:var(--ink);
+  color:var(--gold);
+
+  cursor:pointer;
+
+  display:flex;
+  align-items:center;
+  justify-content:flex-start;
+
+  padding-left:9px;
+
+  box-shadow:0 8px 24px #000a;
+
+  transition:
+    transform .5s cubic-bezier(.22,1,.36,1),
+    background .3s ease;
+}
+
+.qa-toggle i{
+  font-style:normal;
+  font-size:1.6rem;
+  line-height:1;
+
+  display:block;
+
+  transition:transform .5s cubic-bezier(.22,1,.36,1);
+}
+
+.qa.open .qa-toggle{
+  background:var(--gold);
+  color:var(--ink);
+  transform:translateX(-20px);
+}
+
+.qa.open .qa-toggle i{
+  transform:rotate(180deg);
+}
+
+.qa-item{
+  position:absolute;
+  left:5px;
+  top:5px;
+
+  width:46px;
+  height:46px;
+
+  border-radius:50%;
+  border:2px solid var(--gold);
+
+  background:var(--ink);
+  color:var(--gold);
+
+  font-family:'Pirata One',Georgia,serif;
+  font-size:1.3rem;
+
+  cursor:pointer;
+
+  display:flex;
+  align-items:center;
+  justify-content:center;
+
+  box-shadow:0 8px 20px #000a;
+
+  transition:
+    transform .55s cubic-bezier(.34,1.56,.64,1),
+    opacity .35s ease,
+    background .25s ease,
+    color .25s ease;
+}
+
+.qa-item:hover,
+.qa-item.active{
+  background:var(--gold);
+  color:var(--ink);
+}
+
+.qa-hint{
+  position:absolute;
+  right:100%;
+  top:50%;
+
+  margin-right:6px;
+
+  transform:translateY(-50%);
+
+  white-space:nowrap;
+
+  font-size:.7rem;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+
+  color:var(--gold);
+
+  background:#07141dcc;
+
+  border:1px solid var(--gold);
+  border-radius:999px;
+
+  padding:6px 12px;
+
+  pointer-events:none;
+
+  animation:qaPulse 1.8s ease-in-out infinite;
+
+  transition:opacity .3s ease;
+}
+
+.qa-hint.hide{
+  opacity:0;
+  animation:none;
+}
+
+@keyframes qaPulse{
+  50%{
+    transform:translateY(-50%) translateX(-6px);
+  }
 }
 
 /* ============================================================
