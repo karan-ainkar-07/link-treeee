@@ -758,12 +758,7 @@ unlock();
           ))}
         </div>
 
-        <div
-          className="hint"
-          onClick={() => {
-            if (!s.current.busy) goNext();
-          }}
-        >
+        <div className="hint">
           {SITE.scrollHint}
           <i>↓</i>
         </div>
@@ -809,16 +804,6 @@ unlock();
         >
           {SITE.registerLabel}
         </a>
-
-        <div
-          className="scroll-hint-panel"
-          onClick={() => {
-            if (!s.current.busy) goNext();
-          }}
-        >
-          <span>{step < N - 1 ? "Scroll down for next event" : "Scroll down to finish"}</span>
-          <i>↓</i>
-        </div>
       </div>
 
       {/* ========================================================
@@ -1157,7 +1142,7 @@ h3,
   letter-spacing:.2em;
   text-transform:uppercase;
 
-  opacity:.75;
+  opacity:.7;
 
   display:flex;
   flex-direction:column;
@@ -1165,54 +1150,12 @@ h3,
 
   gap:4px;
 
-  cursor:pointer;
-  user-select:none;
-
   animation:bob 1.6s infinite;
-  transition:opacity .2s ease, transform .2s ease;
-}
-
-.hint:hover{
-  opacity:1;
-  transform:translateY(2px);
 }
 
 .hint i{
   font-style:normal;
   font-size:1.2rem;
-}
-
-.scroll-hint-panel{
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  gap:6px;
-
-  margin-top:6px;
-
-  font-size:.75rem;
-  letter-spacing:.14em;
-  text-transform:uppercase;
-
-  color:var(--gold);
-  opacity:.85;
-
-  cursor:pointer;
-  user-select:none;
-
-  animation:bob 1.6s infinite;
-  transition:opacity .2s ease, transform .2s ease;
-}
-
-.scroll-hint-panel:hover{
-  opacity:1;
-  transform:translateY(2px);
-}
-
-.scroll-hint-panel i{
-  font-style:normal;
-  font-size:1.1rem;
-  line-height:1;
 }
 
 @keyframes bob{
@@ -1690,15 +1633,6 @@ h3,
   .desc{
     font-size:1.05rem;
     max-width:34ch;
-  }
-
-  .panel.bottom .cta{
-    align-self:flex-start;
-  }
-
-  .scroll-hint-panel{
-    align-self:flex-start;
-    margin-top:10px;
   }
 
   .chest-item{
