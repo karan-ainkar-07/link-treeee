@@ -804,6 +804,10 @@ unlock();
         >
           {SITE.registerLabel}
         </a>
+        <div className="event-scroll-hint">
+          Scroll
+          <i>↓</i>
+        </div>
       </div>
 
       {/* ========================================================
@@ -1223,6 +1227,30 @@ h3,
 
 .panel.in{
   transform:none;
+}
+  
+.event-scroll-hint{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:4px;
+
+  margin-top:6px;
+  align-self:center;
+
+  font-size:.7rem;
+  letter-spacing:.2em;
+  text-transform:uppercase;
+
+  opacity:.7;
+
+  animation:bob 1.6s infinite;
+}
+
+.event-scroll-hint i{
+  font-style:normal;
+  font-size:1.2rem;
 }
 
 .count{
