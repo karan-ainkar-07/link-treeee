@@ -99,8 +99,8 @@ export const CHEST_ITEMS = [
 ];
 
 export const CHEST = {
-  heading: "The treasure is yours.",
-  sub: "Tap a piece to register, or find us online.",
+  heading: "The treasure is all yours.",
+  sub: "Find us online.",
 };
 
 export const FOOTER = {
